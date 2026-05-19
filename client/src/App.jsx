@@ -131,6 +131,14 @@ export default function App() {
     setView(v);
   }
 
+  const NAV = [
+    { view: 'swipe',   icon: '🐾', label: 'Swipe'   },
+    { view: 'matches', icon: '♥',  label: 'Matches' },
+    { view: 'results', icon: '≡',  label: 'Results' },
+  ];
+
+  const avatarInitial = username ? username.charAt(0).toUpperCase() : '?';
+
   return (
     <div className="app">
       {showModal && <UsernameModal onSave={handleSaveUsername} />}
@@ -140,26 +148,22 @@ export default function App() {
           <span className="logo-paw">🐾</span>
           <span className="logo-text">PawSwipe</span>
         </div>
-        {username && (
-          <span
-            className="username-badge"
+        <div className="header-actions">
+          <button
+            className="avatar-btn"
             onClick={() => setShowModal(true)}
-            title="Change name"
+            title={username || 'Set your name'}
           >
-            {username}
-          </span>
-        )}
-        <nav className="tabs">
-          {['swipe', 'matches', 'results'].map((v) => (
-            <button
-              key={v}
-              className={`tab${view === v ? ' active' : ''}`}
-              onClick={() => navigate(v)}
-            >
-              {v.charAt(0).toUpperCase() + v.slice(1)}
-            </button>
-          ))}
-        </nav>
+            {avatarInitial}
+          </button>
+          <button
+            className={`avatar-btn avatar-btn--gear${view === 'admin' ? ' active' : ''}`}
+            onClick={() => navigate(view === 'admin' ? 'swipe' : 'admin')}
+            title="Admin"
+          >
+            ⚙
+          </button>
+        </div>
       </header>
 
       <main className="app-main">
@@ -197,11 +201,18 @@ export default function App() {
         )}
       </main>
 
-      <footer className="app-footer">
-        <button className="footer-link" onClick={() => navigate('admin')}>
-          Admin
-        </button>
-      </footer>
+      <nav className="bottom-nav">
+        {NAV.map(({ view: v, icon, label }) => (
+          <button
+            key={v}
+            className={`nav-tab${view === v ? ' nav-tab--active' : ''}`}
+            onClick={() => navigate(v)}
+          >
+            <span className="nav-icon">{icon}</span>
+            <span className="nav-label">{label}</span>
+          </button>
+        ))}
+      </nav>
     </div>
   );
 }
