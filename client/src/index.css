@@ -36,8 +36,8 @@ button { font-family: inherit; border: none; background: none; }
 .app {
   max-width: 480px;
   margin: 0 auto;
-  min-height: 100vh;
-  min-height: -webkit-fill-available;
+  height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
