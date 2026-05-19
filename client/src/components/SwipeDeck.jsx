@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import SwipeCard from './SwipeCard.jsx';
 
 export default function SwipeDeck({
@@ -6,7 +7,17 @@ export default function SwipeDeck({
   votedCount,
   onVote,
   onViewResults,
+  onUndo,
+  canUndo,
 }) {
+  // Track when the current top card was shown (for button-click timing)
+  const cardShownAtRef = useRef(Date.now());
+  const topId = items[0]?.id;
+
+  useEffect(() => {
+    cardShownAtRef.current = Date.now();
+  }, [topId]);
+
   if (total === 0) {
     return (
       <div className="loading">
@@ -30,12 +41,16 @@ export default function SwipeDeck({
   }
 
   const visible = items.slice(0, 3);
+  const pct = total > 0 ? (votedCount / total) * 100 : 0;
 
-  function handleVote(item, choice) {
-    onVote(item.id, choice);
+  function btnVote(choice) {
+    const elapsed = Date.now() - cardShownAtRef.current;
+    onVote(items[0].id, choice, elapsed);
   }
 
-  const pct = total > 0 ? (votedCount / total) * 100 : 0;
+  function handleCardVote(item, choice, decisionTimeMs) {
+    onVote(item.id, choice, decisionTimeMs);
+  }
 
   return (
     <div className="swipe-deck">
@@ -43,9 +58,7 @@ export default function SwipeDeck({
         <div className="progress-bar">
           <div className="progress-fill" style={{ width: `${pct}%` }} />
         </div>
-        <span className="progress-label">
-          {votedCount} / {total}
-        </span>
+        <span className="progress-label">{votedCount} / {total}</span>
       </div>
 
       <div className="card-stack">
@@ -57,7 +70,7 @@ export default function SwipeDeck({
               item={item}
               isTop={stackIndex === 0}
               stackIndex={stackIndex}
-              onVote={handleVote}
+              onVote={handleCardVote}
             />
           );
         })}
@@ -69,20 +82,17 @@ export default function SwipeDeck({
       </div>
 
       <div className="action-row">
+        <button className="btn btn--no"  aria-label="Pass"  onClick={() => btnVote('no')}>✗</button>
         <button
-          className="btn btn--no"
-          aria-label="Pass"
-          onClick={() => handleVote(items[0], 'no')}
+          className={`btn btn--undo${canUndo ? '' : ' btn--undo-disabled'}`}
+          aria-label="Undo"
+          onClick={onUndo}
+          disabled={!canUndo}
+          title="Undo last swipe"
         >
-          ✗
+          ↩
         </button>
-        <button
-          className="btn btn--yes"
-          aria-label="Adopt"
-          onClick={() => handleVote(items[0], 'yes')}
-        >
-          ♥
-        </button>
+        <button className="btn btn--yes" aria-label="Adopt" onClick={() => btnVote('yes')}>♥</button>
       </div>
     </div>
   );

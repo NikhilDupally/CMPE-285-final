@@ -1,13 +1,7 @@
 /**
- * Tiny JSON-file persistence layer.
- *
- * All writes go through save(), which atomically replaces the file via a
- * temp-then-rename pattern.  Node's single-threaded event loop ensures
- * synchronous reads/writes don't race each other for this local demo.
- *
- * Trade-off vs SQLite: no query planner, entire file is read on startup,
- * but for ≤200 items and thousands of votes this is well within RAM limits
- * and file I/O is fast on local disk.
+ * JSON-file persistence layer.
+ * Writes are atomic (temp-file rename). Node's single-threaded event loop
+ * prevents concurrent write races for this local, single-process deployment.
  */
 
 const fs   = require('fs');
@@ -29,11 +23,9 @@ function save() {
 }
 
 module.exports = {
-  // ── items ─────────────────────────────────────────────────
+  // ── items ──────────────────────────────────────────────────────────
   allItems() {
-    return Object.values(state.items).sort((a, b) =>
-      a.name.localeCompare(b.name)
-    );
+    return Object.values(state.items).sort((a, b) => a.name.localeCompare(b.name));
   },
 
   upsertItem(item) {
@@ -45,31 +37,61 @@ module.exports = {
     return Boolean(state.items[id]);
   },
 
-  // ── votes ─────────────────────────────────────────────────
-  // Idempotent: voting twice just overwrites the previous choice.
-  upsertVote(sessionId, itemId, choice) {
+  // ── votes ──────────────────────────────────────────────────────────
+  // Idempotent: voting again on the same (session, item) overwrites choice.
+  upsertVote(sessionId, itemId, choice, decisionTimeMs) {
     const key = `${sessionId}|${itemId}`;
-    state.votes[key] = { sessionId, itemId, choice, ts: Date.now() };
+    state.votes[key] = {
+      sessionId,
+      itemId,
+      choice,
+      decisionTimeMs: typeof decisionTimeMs === 'number' ? Math.round(decisionTimeMs) : null,
+      ts: Date.now(),
+    };
     save();
+  },
+
+  // Returns true if a vote existed and was removed.
+  deleteVote(sessionId, itemId) {
+    const key = `${sessionId}|${itemId}`;
+    if (!state.votes[key]) return false;
+    delete state.votes[key];
+    save();
+    return true;
   },
 
   votesBySession(sessionId) {
     return Object.values(state.votes).filter((v) => v.sessionId === sessionId);
   },
 
-  // ── results ───────────────────────────────────────────────
+  // ── results ────────────────────────────────────────────────────────
   aggregateResults() {
     const allVotes = Object.values(state.votes);
     return Object.values(state.items).map((item) => {
       const iv = allVotes.filter((v) => v.itemId === item.id);
       const yes = iv.filter((v) => v.choice === 'yes').length;
       const no  = iv.filter((v) => v.choice === 'no').length;
-      return {
-        ...item,
-        yes_count:   yes,
-        no_count:    no,
-        total_votes: iv.length,
-      };
+      return { ...item, yes_count: yes, no_count: no, total_votes: iv.length };
     });
+  },
+
+  // ── analytics ──────────────────────────────────────────────────────
+  getAnalytics() {
+    const votes = Object.values(state.votes);
+    const sessions = new Set(votes.map((v) => v.sessionId));
+    const timings = votes.filter((v) => v.decisionTimeMs != null).map((v) => v.decisionTimeMs);
+    const avgDecisionTimeMs =
+      timings.length > 0
+        ? Math.round(timings.reduce((a, b) => a + b, 0) / timings.length)
+        : null;
+    const now = Date.now();
+    const votesLast24h = votes.filter((v) => now - v.ts < 86_400_000).length;
+
+    return {
+      totalSwipes: votes.length,
+      totalSessions: sessions.size,
+      avgDecisionTimeMs,
+      votesLast24h,
+    };
   },
 };

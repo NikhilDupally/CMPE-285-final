@@ -18,8 +18,7 @@ function sortItems(items, sortBy) {
       return copy.sort((a, b) => yesRate(b) - yesRate(a));
     case 'most_divisive':
       return copy.sort(
-        (a, b) =>
-          Math.abs(yesRate(a) - 0.5) - Math.abs(yesRate(b) - 0.5)
+        (a, b) => Math.abs(yesRate(a) - 0.5) - Math.abs(yesRate(b) - 0.5)
       );
     case 'most_voted':
       return copy.sort((a, b) => b.total_votes - a.total_votes);
@@ -30,17 +29,52 @@ function sortItems(items, sortBy) {
   }
 }
 
-export default function ResultsView({ results, onRefresh }) {
+function fmtMs(ms) {
+  if (ms == null) return '—';
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
+export default function ResultsView({ results, analytics, onRefresh, isLive }) {
   const [sortBy, setSortBy] = useState('most_loved');
   const [imgFailed, setImgFailed] = useState({});
+
   const sorted = sortItems(results, sortBy);
   const totalVotes = results.reduce((s, r) => s + r.total_votes, 0);
 
   return (
     <div className="results-view">
+      {/* analytics strip */}
+      {analytics && (
+        <div className="analytics-strip">
+          <div className="analytics-stat">
+            <span className="analytics-val">{analytics.totalSwipes.toLocaleString()}</span>
+            <span className="analytics-key">total swipes</span>
+          </div>
+          <div className="analytics-divider" />
+          <div className="analytics-stat">
+            <span className="analytics-val">{analytics.totalSessions.toLocaleString()}</span>
+            <span className="analytics-key">swipers</span>
+          </div>
+          <div className="analytics-divider" />
+          <div className="analytics-stat">
+            <span className="analytics-val">{fmtMs(analytics.avgDecisionTimeMs)}</span>
+            <span className="analytics-key">avg decision</span>
+          </div>
+          <div className="analytics-divider" />
+          <div className="analytics-stat">
+            <span className="analytics-val">{analytics.votesLast24h.toLocaleString()}</span>
+            <span className="analytics-key">last 24h</span>
+          </div>
+        </div>
+      )}
+
       <div className="results-header">
         <div>
-          <h2 className="results-title">Community Results</h2>
+          <h2 className="results-title">
+            Community Results
+            {isLive && <span className="live-badge">Live</span>}
+          </h2>
           <p className="results-meta">{totalVotes.toLocaleString()} votes cast</p>
         </div>
         <div className="results-controls">
@@ -50,21 +84,17 @@ export default function ResultsView({ results, onRefresh }) {
             onChange={(e) => setSortBy(e.target.value)}
           >
             {SORTS.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
+              <option key={s.value} value={s.value}>{s.label}</option>
             ))}
           </select>
-          <button className="btn-icon" onClick={onRefresh} title="Refresh">
-            ↻
-          </button>
+          <button className="btn-icon" onClick={onRefresh} title="Refresh">↻</button>
         </div>
       </div>
 
       <ol className="results-list">
         {sorted.map((item, idx) => {
           const rate = Math.round(yesRate(item) * 100);
-          const src = imgFailed[item.id]
+          const src  = imgFailed[item.id]
             ? `https://placedog.net/56/56?id=${item.id}`
             : item.image_url;
           return (
@@ -74,9 +104,7 @@ export default function ResultsView({ results, onRefresh }) {
                 src={src}
                 alt={item.name}
                 className="result-thumb"
-                onError={() =>
-                  setImgFailed((p) => ({ ...p, [item.id]: true }))
-                }
+                onError={() => setImgFailed((p) => ({ ...p, [item.id]: true }))}
               />
               <div className="result-info">
                 <div className="result-name-row">
@@ -84,10 +112,7 @@ export default function ResultsView({ results, onRefresh }) {
                   <span className="result-pct">{rate}%</span>
                 </div>
                 <div className="vote-bar">
-                  <div
-                    className="vote-bar-fill"
-                    style={{ width: `${rate}%` }}
-                  />
+                  <div className="vote-bar-fill" style={{ width: `${rate}%` }} />
                 </div>
                 <p className="vote-counts">
                   ♥ {item.yes_count.toLocaleString()} &nbsp;·&nbsp; ✗{' '}
