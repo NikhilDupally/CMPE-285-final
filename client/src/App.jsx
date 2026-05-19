@@ -127,7 +127,7 @@ export default function App() {
   // ── nav ────────────────────────────────────────────────────────
   function navigate(v) {
     if (v === 'admin') window.location.hash = 'admin';
-    else if (window.location.hash === '#admin') history.replaceState(null, '', ' ');
+    else if (window.location.hash === '#admin') window.history.replaceState(null, '', ' ');
     setView(v);
   }
 
